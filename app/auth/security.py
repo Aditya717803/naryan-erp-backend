@@ -1,10 +1,11 @@
+import os
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 from pwdlib import PasswordHash
 
 
-SECRET_KEY = "CHANGE_THIS_IN_PRODUCTION"
+SECRET_KEY = os.environ["SECRET_KEY"]
 
 ALGORITHM = "HS256"
 
