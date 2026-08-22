@@ -12,7 +12,6 @@ from app.models.user import User
 router = APIRouter(
     prefix="/products",
     tags=["Products"],
-    dependencies= [Depends(get_current_user)]
 )
 
 
