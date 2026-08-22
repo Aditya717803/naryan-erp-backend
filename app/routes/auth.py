@@ -82,9 +82,24 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
 
-    user_id = decode_access_token(token)
+    print("\n========== AUTH DIAGNOSTIC ==========")
+    print("Token received:", bool(token))
+    print("Token length:", len(token) if token else 0)
+
+    if token:
+        print("Token prefix:", token[:20])
+
+    try:
+        user_id = decode_access_token(token)
+        print("Decoded user_id:", repr(user_id))
+    except Exception as e:
+        print("JWT decode exception:", type(e).__name__, str(e))
+        user_id = None
 
     if user_id is None:
+        print("RESULT: JWT INVALID")
+        print("====================================\n")
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -99,7 +114,16 @@ def get_current_user(
         )
     )
 
+    print("Database user found:", user is not None)
+
+    if user:
+        print("Database user_id:", repr(user.user_id))
+        print("Database active:", user.is_active)
+
     if user is None:
+        print("RESULT: USER NOT FOUND")
+        print("====================================\n")
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -109,13 +133,18 @@ def get_current_user(
         )
 
     if not user.is_active:
+        print("RESULT: USER INACTIVE")
+        print("====================================\n")
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",
         )
 
-    return user
+    print("RESULT: AUTHENTICATION SUCCESS")
+    print("====================================\n")
 
+    return user
 
 @router.get(
     "/me",

@@ -55,6 +55,10 @@ def decode_access_token(
     token: str,
 ) -> str | None:
 
+    print("\n---------- JWT DIAGNOSTIC ----------")
+    print("Token received:", bool(token))
+    print("Token length:", len(token) if token else 0)
+
     try:
         payload = jwt.decode(
             token,
@@ -62,12 +66,19 @@ def decode_access_token(
             algorithms=[ALGORITHM],
         )
 
+        print("JWT payload:", payload)
+
         user_id = payload.get("sub")
+
+        print("JWT sub:", repr(user_id))
+        print("------------------------------------\n")
 
         if not user_id:
             return None
 
         return user_id
 
-    except JWTError:
+    except JWTError as e:
+        print("JWT ERROR:", type(e).__name__, str(e))
+        print("------------------------------------\n")
         return None
