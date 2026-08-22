@@ -124,6 +124,7 @@ def get_customers(
     search: str | None = None,
     db: Session = Depends(get_db),
 ):
+    print("🔥 GET_CUSTOMERS ENDPOINT REACHED")
     query = select(Customer).order_by(Customer.id.desc())
 
     if search:
