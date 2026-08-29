@@ -3,9 +3,11 @@ from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 from pwdlib import PasswordHash
+from app.config import settings
 
 
-SECRET_KEY = os.environ["SECRET_KEY"]
+
+SECRET_KEY = settings.SECRET_KEY
 
 ALGORITHM = "HS256"
 

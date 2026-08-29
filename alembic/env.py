@@ -12,6 +12,8 @@ from sqlalchemy import create_engine
 from app.models.invoice import Invoice
 from app.models.product import Product
 from app.models.invoice_item import InvoiceItem
+from app.models.invoice_number_counter import InvoiceNumberCounter
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

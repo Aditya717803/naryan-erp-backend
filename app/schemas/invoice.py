@@ -23,10 +23,7 @@ class InvoiceItemCreate(BaseModel):
 
 
 class InvoiceCreate(BaseModel):
-    invoice_number: str = Field(
-        min_length=1,
-        max_length=30,
-    )
+    
 
     customer_id: int
 

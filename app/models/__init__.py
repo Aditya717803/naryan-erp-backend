@@ -7,3 +7,4 @@ from app.models.inventory import Inventory
 from app.models.inventory_transaction import InventoryTransaction
 from app.models.notification import Notification
 from app.models.user import User
+from app.models.invoice_number_counter import InvoiceNumberCounter
