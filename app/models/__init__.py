@@ -8,3 +8,11 @@ from app.models.inventory_transaction import InventoryTransaction
 from app.models.notification import Notification
 from app.models.user import User
 from app.models.invoice_number_counter import InvoiceNumberCounter
+from app.models.customer import Customer
+from app.models.manufacture_customer import ManufactureCustomer
+from app.models.manufacture_product import ManufactureProduct
+from app.models.manufacture_invoice import ManufactureInvoice
+from app.models.manufacture_invoice_item import ManufactureInvoiceItem
+from app.models.manufacture_inventory import ManufactureInventory
+from app.models.manufacture_inventory_transaction import ManufactureInventoryTransaction
+from app.models.manufacture_invoice_number_counter import ManufactureInvoiceNumberCounter

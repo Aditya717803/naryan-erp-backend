@@ -13,6 +13,11 @@ from app.routes.inventory import router as inventory_router
 from app.routes.notifications import router as notifications_router
 from app.routes.auth import router as auth_router
 from app.routes.dashboard import router as dashboard_router
+from app.routes.manufacture_dashboard import router as manufacture_dashboard_router
+from app.routes.manufacture_customers import router as manufacture_customer_router
+from app.routes.manufacture_products import router as manufacture_products_router
+from app.routes.manufacture_inventory import router as manufacture_inventory_router
+from app.routes.manufacture_invoices import router as manufacture_invoice_router
 
 
 app = FastAPI()
@@ -44,3 +49,8 @@ app.include_router(inventory_router)
 app.include_router(notifications_router)
 app.include_router(auth_router)
 app.include_router(dashboard_router)
+app.include_router(manufacture_dashboard_router)
+app.include_router(manufacture_customer_router)
+app.include_router(manufacture_products_router)
+app.include_router(manufacture_inventory_router)
+app.include_router(manufacture_invoice_router)
