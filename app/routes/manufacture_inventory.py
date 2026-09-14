@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,6 +17,23 @@ from app.schemas.manufacture_inventory import (
     ManufactureInventoryResponse,
     ManufactureInventoryTransactionResponse,
 )
+
+
+def validate_quantity_for_unit(
+    quantity: Decimal,
+    unit: str,
+) -> None:
+    if unit.strip().lower() == "kg":
+        return
+
+    if quantity != quantity.to_integral_value():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Quantity for {unit} must be a whole number. "
+                f"Received: {quantity}"
+            ),
+        )
 
 
 router = APIRouter(
@@ -63,6 +82,11 @@ def add_stock(
                 detail="Product not found",
             )
 
+        validate_quantity_for_unit(
+            stock_data.quantity,
+            product.unit,
+        )
+
         inventory = db.scalar(
             select(ManufactureInventory)
             .where(ManufactureInventory.product_id == product_id)
@@ -109,6 +133,11 @@ def remove_stock(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Product not found",
             )
+
+        validate_quantity_for_unit(
+            stock_data.quantity,
+            product.unit,
+        )
 
         inventory = db.scalar(
             select(ManufactureInventory)

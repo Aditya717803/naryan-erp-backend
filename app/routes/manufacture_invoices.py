@@ -37,6 +37,23 @@ def money(value: Decimal) -> Decimal:
     return value.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
 
+def validate_quantity_for_unit(
+    quantity: Decimal,
+    unit: str,
+) -> None:
+    if unit.strip().lower() == "kg":
+        return
+
+    if quantity != quantity.to_integral_value():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Quantity for {unit} must be a whole number. "
+                f"Received: {quantity}"
+            ),
+        )
+
+
 @router.post(
     "/",
     response_model=ManufactureInvoiceResponse,
@@ -70,6 +87,11 @@ def create_invoice(
                         detail=f"Product {item_data.product_id} not found",
                     )
                 products[item_data.product_id] = product
+
+            validate_quantity_for_unit(
+                item_data.quantity,
+                product.unit,
+            )
 
             requested_quantities[item_data.product_id] = (
                 requested_quantities.get(item_data.product_id, Decimal("0"))

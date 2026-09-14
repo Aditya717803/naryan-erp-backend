@@ -78,6 +78,19 @@ def create_invoice(
 
         products[item_data.product_id] = product
 
+                # Validate quantity based on product unit
+        unit = (product.unit or "").strip().lower()
+
+        if unit != "kg":
+            if item_data.quantity != item_data.quantity.to_integral_value():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Quantity for {product.name} ({product.unit}) "
+                        "must be a whole number."
+                    ),
+                )
+
         # Lock inventory row
         inventory = db.scalar(
             select(Inventory)
