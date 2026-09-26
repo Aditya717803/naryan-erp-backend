@@ -13,6 +13,7 @@ from app.models.manufacture_inventory_transaction import (
 from app.models.manufacture_product import ManufactureProduct
 from app.routes.auth import get_current_user
 from app.schemas.manufacture_inventory import (
+    ManufactureBundleCountAdjustment,
     ManufactureInventoryAdjustment,
     ManufactureInventoryResponse,
     ManufactureInventoryTransactionResponse,
@@ -180,6 +181,53 @@ def remove_stock(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to remove manufacture stock",
         )
+
+
+@router.post("/{product_id}/bundles/add", response_model=ManufactureInventoryResponse)
+def add_bundle_count(
+    product_id: int,
+    adjustment: ManufactureBundleCountAdjustment,
+    db: Session = Depends(get_db),
+):
+    if db.get(ManufactureProduct, product_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    inventory = db.scalar(
+        select(ManufactureInventory)
+        .where(ManufactureInventory.product_id == product_id)
+        .with_for_update()
+    )
+    if inventory is None:
+        inventory = ManufactureInventory(product_id=product_id, quantity=0, bundle_count=0)
+        db.add(inventory)
+        db.flush()
+    inventory.bundle_count += adjustment.count
+    db.commit()
+    db.refresh(inventory)
+    return inventory
+
+
+@router.post("/{product_id}/bundles/remove", response_model=ManufactureInventoryResponse)
+def remove_bundle_count(
+    product_id: int,
+    adjustment: ManufactureBundleCountAdjustment,
+    db: Session = Depends(get_db),
+):
+    inventory = db.scalar(
+        select(ManufactureInventory)
+        .where(ManufactureInventory.product_id == product_id)
+        .with_for_update()
+    )
+    if inventory is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory not found for this product")
+    if inventory.bundle_count < adjustment.count:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Insufficient bundles. Available: {inventory.bundle_count}",
+        )
+    inventory.bundle_count -= adjustment.count
+    db.commit()
+    db.refresh(inventory)
+    return inventory
 
 
 @router.get(

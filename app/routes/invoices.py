@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,6 +15,8 @@ from app.routes.auth import get_current_user
 from app.models.invoice_number_counter import InvoiceNumberCounter
 from app.models.inventory import Inventory
 from app.models.inventory_transaction import InventoryTransaction
+from app.invoice_pdf import invoices_zip
+from fastapi.responses import Response
 
 
 router = APIRouter(
@@ -78,7 +81,10 @@ def create_invoice(
 
         products[item_data.product_id] = product
 
-                # Validate quantity based on product unit
+        if not invoice_data.deduct_from_inventory:
+            continue
+
+        # Validate quantity based on product unit
         unit = (product.unit or "").strip().lower()
 
         if unit != "kg":
@@ -154,6 +160,7 @@ def create_invoice(
         invoice_number=invoice_number,
         customer_id=invoice_data.customer_id,
         invoice_date=invoice_data.invoice_date,
+        deduct_from_inventory=invoice_data.deduct_from_inventory,
 
         eway_bill_number=invoice_data.eway_bill_number,
         delivery_note=invoice_data.delivery_note,
@@ -270,35 +277,21 @@ def create_invoice(
 
         db.add(invoice_item)
 
-        # ----------------------------------------------
-        # Deduct stock
-        # ----------------------------------------------
-
-        inventory = db.scalar(
-            select(Inventory)
-            .where(
-                Inventory.product_id
-                == product.id
+        if invoice_data.deduct_from_inventory:
+            inventory = db.scalar(
+                select(Inventory)
+                .where(Inventory.product_id == product.id)
+                .with_for_update()
             )
-            .with_for_update()
-        )
-
-        inventory.quantity -= item_data.quantity
-
-        # ----------------------------------------------
-        # Record inventory transaction
-        # ----------------------------------------------
-
-        transaction = InventoryTransaction(
-            product_id=product.id,
-            transaction_type="SALE",
-            quantity=-item_data.quantity,
-            note=(
-                f"Invoice {invoice_number}"
-            ),
-        )
-
-        db.add(transaction)
+            inventory.quantity -= item_data.quantity
+            db.add(
+                InventoryTransaction(
+                    product_id=product.id,
+                    transaction_type="SALE",
+                    quantity=-item_data.quantity,
+                    note=f"Invoice {invoice_number}",
+                )
+            )
 
         subtotal += amount
         total_cgst += cgst_amount
@@ -391,6 +384,27 @@ def get_next_invoice_number(
         "invoice_number": f"INV-{counter.next_number:06d}"
     }
 
+@router.get("/download")
+def download_invoices(
+    start_date: date,
+    end_date: date,
+    db: Session = Depends(get_db),
+):
+    if start_date > end_date:
+        raise HTTPException(status_code=400, detail="start_date must not be after end_date")
+    invoices = db.scalars(
+        select(Invoice).where(
+            Invoice.invoice_date >= start_date,
+            Invoice.invoice_date <= end_date,
+        ).order_by(Invoice.invoice_date, Invoice.id)
+    ).all()
+    if not invoices:
+        raise HTTPException(status_code=404, detail="No invoices found for the requested date range")
+    return Response(
+        content=invoices_zip(invoices, "invoice"),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="invoices-{start_date}-to-{end_date}.zip"'},
+    )
 
 
 
@@ -412,5 +426,3 @@ def get_invoice(
         )
 
     return invoice
-
-

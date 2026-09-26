@@ -18,6 +18,7 @@ from app.routes.manufacture_customers import router as manufacture_customer_rout
 from app.routes.manufacture_products import router as manufacture_products_router
 from app.routes.manufacture_inventory import router as manufacture_inventory_router
 from app.routes.manufacture_invoices import router as manufacture_invoice_router
+from app.routes.archive import router as archive_router
 
 
 app = FastAPI()
@@ -54,3 +55,4 @@ app.include_router(manufacture_customer_router)
 app.include_router(manufacture_products_router)
 app.include_router(manufacture_inventory_router)
 app.include_router(manufacture_invoice_router)
+app.include_router(archive_router)

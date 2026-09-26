@@ -14,6 +14,7 @@ class ManufactureInvoiceItemCreate(BaseModel):
 class ManufactureInvoiceCreate(BaseModel):
     customer_id: int
     invoice_date: date
+    deduct_from_inventory: bool = False
 
     eway_bill_number: str | None = None
     delivery_note: str | None = None
@@ -63,6 +64,7 @@ class ManufactureInvoiceResponse(BaseModel):
     invoice_number: str
     customer_id: int
     invoice_date: date
+    deduct_from_inventory: bool
 
     eway_bill_number: str | None
     delivery_note: str | None

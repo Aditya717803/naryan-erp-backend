@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -11,12 +11,26 @@ from app.models.manufacture_inventory import ManufactureInventory
 from app.models.manufacture_invoice import ManufactureInvoice
 from app.models.manufacture_invoice_item import ManufactureInvoiceItem
 from app.models.manufacture_product import ManufactureProduct
+from app.routes.auth import get_current_user
 
 
 router = APIRouter(
     prefix="/manufacture/dashboard",
     tags=["Manufacture Dashboard"],
 )
+
+
+def _period_dates(period: str) -> tuple[date, date]:
+    today = date.today()
+    if period == "day":
+        return today, today
+    if period == "week":
+        return today - timedelta(days=today.weekday()), today
+    if period == "month":
+        return today.replace(day=1), today
+    if period == "year":
+        return today.replace(month=1, day=1), today
+    raise HTTPException(status_code=400, detail="period must be day, week, month, or year")
 
 
 @router.get("/")
@@ -202,3 +216,52 @@ def get_manufacture_dashboard(
             for row in top_products
         ],
     }
+
+
+@router.get("/top-products")
+def get_manufacture_top_products(
+    period: str = "day",
+    db: Session = Depends(get_db),
+    _current_user=Depends(get_current_user),
+):
+    start_date, end_date = _period_dates(period)
+    rows = db.execute(
+        select(
+            ManufactureProduct.id,
+            ManufactureProduct.product_code,
+            ManufactureProduct.name,
+            ManufactureInvoiceItem.unit,
+            func.sum(ManufactureInvoiceItem.quantity).label("quantity_sold"),
+        )
+        .join(
+            ManufactureInvoiceItem,
+            ManufactureInvoiceItem.product_id == ManufactureProduct.id,
+        )
+        .join(
+            ManufactureInvoice,
+            ManufactureInvoice.id == ManufactureInvoiceItem.invoice_id,
+        )
+        .where(
+            ManufactureInvoice.invoice_date >= start_date,
+            ManufactureInvoice.invoice_date <= end_date,
+        )
+        .group_by(
+            ManufactureProduct.id,
+            ManufactureProduct.product_code,
+            ManufactureProduct.name,
+            ManufactureInvoiceItem.unit,
+        )
+        .order_by(func.sum(ManufactureInvoiceItem.quantity).desc())
+        .limit(5)
+    ).all()
+    return [
+        {
+            "id": row.id,
+            "product_code": row.product_code,
+            "name": row.name,
+            "quantity_sold": float(row.quantity_sold),
+            "unit": row.unit,
+            "units": row.unit,
+        }
+        for row in rows
+    ]

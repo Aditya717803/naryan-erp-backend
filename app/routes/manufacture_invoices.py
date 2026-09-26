@@ -1,6 +1,8 @@
+from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -22,6 +24,7 @@ from app.schemas.manufacture_invoice import (
     ManufactureInvoiceCreate,
     ManufactureInvoiceResponse,
 )
+from app.invoice_pdf import invoices_zip
 
 
 router = APIRouter(
@@ -88,46 +91,38 @@ def create_invoice(
                     )
                 products[item_data.product_id] = product
 
-            validate_quantity_for_unit(
-                item_data.quantity,
-                product.unit,
-            )
-
-            requested_quantities[item_data.product_id] = (
-                requested_quantities.get(item_data.product_id, Decimal("0"))
-                + item_data.quantity
-            )
-
-            if item_data.product_id not in inventories:
-                inventory = db.scalar(
-                    select(ManufactureInventory)
-                    .where(
-                        ManufactureInventory.product_id == item_data.product_id
-                    )
-                    .with_for_update()
+            if invoice_data.deduct_from_inventory:
+                validate_quantity_for_unit(item_data.quantity, product.unit)
+                requested_quantities[item_data.product_id] = (
+                    requested_quantities.get(item_data.product_id, Decimal("0"))
+                    + item_data.quantity
                 )
-                if inventory is None:
+                if item_data.product_id not in inventories:
+                    inventory = db.scalar(
+                        select(ManufactureInventory)
+                        .where(ManufactureInventory.product_id == item_data.product_id)
+                        .with_for_update()
+                    )
+                    if inventory is None:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Inventory not found for product {product.name}",
+                        )
+                    inventories[item_data.product_id] = inventory
+
+        if invoice_data.deduct_from_inventory:
+            for product_id, requested in requested_quantities.items():
+                inventory = inventories[product_id]
+                product = products[product_id]
+                if inventory.quantity < requested:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
+                        status_code=status.HTTP_400_BAD_REQUEST,
                         detail=(
-                            f"Inventory not found for product "
-                            f"{product.name}"
+                            f"Insufficient stock for {product.name}. "
+                            f"Available: {inventory.quantity}, "
+                            f"Requested: {requested}"
                         ),
                     )
-                inventories[item_data.product_id] = inventory
-
-        for product_id, requested in requested_quantities.items():
-            inventory = inventories[product_id]
-            product = products[product_id]
-            if inventory.quantity < requested:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=(
-                        f"Insufficient stock for {product.name}. "
-                        f"Available: {inventory.quantity}, "
-                        f"Requested: {requested}"
-                    ),
-                )
 
         counter = db.scalar(
             select(ManufactureInvoiceNumberCounter)
@@ -150,6 +145,7 @@ def create_invoice(
             invoice_number=invoice_number,
             customer_id=invoice_data.customer_id,
             invoice_date=invoice_data.invoice_date,
+            deduct_from_inventory=invoice_data.deduct_from_inventory,
             eway_bill_number=invoice_data.eway_bill_number,
             delivery_note=invoice_data.delivery_note,
             payment_terms=invoice_data.payment_terms,
@@ -219,15 +215,16 @@ def create_invoice(
                 )
             )
 
-            inventories[item_data.product_id].quantity -= item_data.quantity
-            db.add(
-                ManufactureInventoryTransaction(
-                    product_id=product.id,
-                    transaction_type="SALE",
-                    quantity=-item_data.quantity,
-                    note=f"Invoice {invoice_number}",
+            if invoice_data.deduct_from_inventory:
+                inventories[item_data.product_id].quantity -= item_data.quantity
+                db.add(
+                    ManufactureInventoryTransaction(
+                        product_id=product.id,
+                        transaction_type="SALE",
+                        quantity=-item_data.quantity,
+                        note=f"Invoice {invoice_number}",
+                    )
                 )
-            )
 
             subtotal += amount
             total_cgst += cgst_amount
@@ -292,6 +289,28 @@ def get_next_invoice_number(db: Session = Depends(get_db)):
             ),
         )
     return {"invoice_number": f"MINV-{counter.next_number:06d}"}
+
+@router.get("/download")
+def download_manufacture_invoices(
+    start_date: date,
+    end_date: date,
+    db: Session = Depends(get_db),
+):
+    if start_date > end_date:
+        raise HTTPException(status_code=400, detail="start_date must not be after end_date")
+    invoices = db.scalars(
+        select(ManufactureInvoice).where(
+            ManufactureInvoice.invoice_date >= start_date,
+            ManufactureInvoice.invoice_date <= end_date,
+        ).order_by(ManufactureInvoice.invoice_date, ManufactureInvoice.id)
+    ).all()
+    if not invoices:
+        raise HTTPException(status_code=404, detail="No manufacture invoices found for the requested date range")
+    return Response(
+        content=invoices_zip(invoices, "manufacture-invoice"),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="manufacture-invoices-{start_date}-to-{end_date}.zip"'},
+    )
 
 
 @router.get(

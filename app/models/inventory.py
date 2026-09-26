@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from decimal import Decimal
@@ -23,6 +23,13 @@ class Inventory(Base):
 
     quantity: Mapped[int] = mapped_column(
         Numeric(14, 3),
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+
+    bundle_count: Mapped[int] = mapped_column(
+        Integer,
         nullable=False,
         default=0,
         server_default="0",

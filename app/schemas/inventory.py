@@ -9,10 +9,15 @@ class InventoryAdjustment(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
+class BundleCountAdjustment(BaseModel):
+    count: int = Field(gt=0)
+
+
 class InventoryResponse(BaseModel):
     id: int
     product_id: int
     quantity: Decimal
+    bundle_count: int
     created_at: datetime
     updated_at: datetime
 

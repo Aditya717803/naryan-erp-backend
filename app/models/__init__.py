@@ -16,3 +16,4 @@ from app.models.manufacture_invoice_item import ManufactureInvoiceItem
 from app.models.manufacture_inventory import ManufactureInventory
 from app.models.manufacture_inventory_transaction import ManufactureInventoryTransaction
 from app.models.manufacture_invoice_number_counter import ManufactureInvoiceNumberCounter
+from app.models.invoice_archive import InvoiceArchive

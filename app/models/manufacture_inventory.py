@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -23,6 +23,13 @@ class ManufactureInventory(Base):
 
     quantity: Mapped[Decimal] = mapped_column(
         Numeric(14, 3),
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+
+    bundle_count: Mapped[int] = mapped_column(
+        Integer,
         nullable=False,
         default=0,
         server_default="0",
