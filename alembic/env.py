@@ -13,6 +13,7 @@ from app.models.invoice import Invoice
 from app.models.product import Product
 from app.models.invoice_item import InvoiceItem
 from app.models.invoice_number_counter import InvoiceNumberCounter
+from app.models.expense import Expense
 
 
 # this is the Alembic Config object, which provides
