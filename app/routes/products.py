@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.product import Product
-from app.schemas.product import ProductCreate, ProductResponse
+from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.routes.auth import get_current_user
 from app.models.user import User
 
@@ -80,6 +80,35 @@ def get_products(
     products = db.scalars(query).all()
 
     return products
+
+
+@router.put(
+    "/{product_id}",
+    response_model=ProductResponse,
+)
+def update_product(
+    product_id: int,
+    product_data: ProductUpdate,
+    db: Session = Depends(get_db),
+):
+    product = db.get(Product, product_id)
+    if product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+
+    product.name = product_data.name.strip()
+    product.hsn_sac = (
+        product_data.hsn_sac.strip()
+        if product_data.hsn_sac
+        else None
+    )
+    product.unit = product_data.unit.strip()
+
+    db.commit()
+    db.refresh(product)
+    return product
 
 
 @router.get(

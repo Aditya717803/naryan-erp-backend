@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.customer import Customer
 from app.models.state import State
-from app.schemas.customer import CustomerCreate, CustomerResponse
+from app.schemas.customer import CustomerCreate, CustomerResponse, CustomerUpdate
 from app.models.invoice import Invoice
 from app.schemas.invoice import InvoiceResponse
 from app.routes.auth import get_current_user
@@ -115,6 +115,72 @@ def create_customer(
     db.refresh(customer)
 
     return customer
+
+
+@router.put(
+    "/{customer_id}",
+    response_model=CustomerResponse,
+)
+def update_customer(
+    customer_id: int,
+    customer_data: CustomerUpdate,
+    db: Session = Depends(get_db),
+):
+    customer = db.get(Customer, customer_id)
+    if customer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer not found",
+        )
+
+    state = db.get(State, customer_data.state_id)
+    if state is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Selected state does not exist",
+        )
+
+    gstin = customer_data.gstin_uin.strip().upper() if customer_data.gstin_uin else None
+    if gstin:
+        if len(gstin) != 15:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="GSTIN must contain exactly 15 characters",
+            )
+        if gstin[:2] != state.code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"GSTIN state code {gstin[:2]} does not match "
+                    f"selected state code {state.code}"
+                ),
+            )
+        duplicate = db.scalar(
+            select(Customer).where(
+                Customer.gstin_uin == gstin,
+                Customer.id != customer_id,
+            )
+        )
+        if duplicate:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A customer with this GSTIN already exists",
+            )
+
+    customer.name = customer_data.name.strip()
+    customer.gstin_uin = gstin
+    customer.contact_person = (
+        customer_data.contact_person.strip()
+        if customer_data.contact_person
+        else None
+    )
+    customer.address = customer_data.address.strip()
+    customer.state_id = customer_data.state_id
+
+    db.commit()
+    db.refresh(customer)
+    return customer
+
 
 @router.get(
     "/",

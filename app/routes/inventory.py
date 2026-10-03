@@ -261,6 +261,14 @@ def add_bundle_count(
         db.add(inventory)
         db.flush()
     inventory.bundle_count += adjustment.count
+    db.add(
+        InventoryTransaction(
+            product_id=product_id,
+            transaction_type="BUNDLE_ADJUSTMENT_IN",
+            quantity=adjustment.count,
+            note=adjustment.note,
+        )
+    )
     db.commit()
     db.refresh(inventory)
     return inventory
@@ -283,6 +291,14 @@ def remove_bundle_count(
             detail=f"Insufficient bundles. Available: {inventory.bundle_count}",
         )
     inventory.bundle_count -= adjustment.count
+    db.add(
+        InventoryTransaction(
+            product_id=product_id,
+            transaction_type="BUNDLE_ADJUSTMENT_OUT",
+            quantity=adjustment.count,
+            note=adjustment.note,
+        )
+    )
     db.commit()
     db.refresh(inventory)
     return inventory

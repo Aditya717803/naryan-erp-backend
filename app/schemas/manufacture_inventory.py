@@ -11,6 +11,7 @@ class ManufactureInventoryAdjustment(BaseModel):
 
 class ManufactureBundleCountAdjustment(BaseModel):
     count: int = Field(gt=0)
+    note: str | None = Field(default=None, max_length=500)
 
 
 class ManufactureInventoryResponse(BaseModel):

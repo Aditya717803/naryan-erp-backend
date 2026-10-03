@@ -8,6 +8,15 @@ class CustomerCreate(BaseModel):
     address: str = Field(min_length=1)
     state_id: int
 
+
+class CustomerUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    gstin_uin: str | None = Field(default=None, max_length=20)
+    contact_person: str | None = Field(default=None, max_length=150)
+    address: str = Field(min_length=1)
+    state_id: int
+
+
 class CustomerResponse(BaseModel):
     id: int
     customer_code: str

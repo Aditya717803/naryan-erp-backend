@@ -11,6 +11,7 @@ class InventoryAdjustment(BaseModel):
 
 class BundleCountAdjustment(BaseModel):
     count: int = Field(gt=0)
+    note: str | None = Field(default=None, max_length=500)
 
 
 class InventoryResponse(BaseModel):
