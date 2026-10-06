@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class ManufactureInventoryAdjustment(BaseModel):
     quantity: Decimal = Field(gt=0)
+    bundle_count: int | None = Field(default=None, gt=0)
     note: str | None = Field(default=None, max_length=500)
 
 

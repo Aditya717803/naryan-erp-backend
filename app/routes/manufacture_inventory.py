@@ -98,6 +98,17 @@ def add_stock(
             db.add(inventory)
             db.flush()
 
+        if stock_data.bundle_count is not None:
+            inventory.bundle_count += stock_data.bundle_count
+            db.add(
+                ManufactureInventoryTransaction(
+                    product_id=product_id,
+                    transaction_type="BUNDLE_ADJUSTMENT_IN",
+                    quantity=stock_data.bundle_count,
+                    note=stock_data.note,
+                )
+            )
+
         inventory.quantity += stock_data.quantity
         db.add(
             ManufactureInventoryTransaction(
@@ -160,7 +171,26 @@ def remove_stock(
                 ),
             )
 
+        if (
+            stock_data.bundle_count is not None
+            and inventory.bundle_count < stock_data.bundle_count
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient bundles. Available: {inventory.bundle_count}",
+            )
+
         inventory.quantity -= stock_data.quantity
+        if stock_data.bundle_count is not None:
+            inventory.bundle_count -= stock_data.bundle_count
+            db.add(
+                ManufactureInventoryTransaction(
+                    product_id=product_id,
+                    transaction_type="BUNDLE_ADJUSTMENT_OUT",
+                    quantity=stock_data.bundle_count,
+                    note=stock_data.note,
+                )
+            )
         db.add(
             ManufactureInventoryTransaction(
                 product_id=product_id,
