@@ -10,6 +10,7 @@ from app.models.customer import Customer
 from app.models.invoice import Invoice
 from app.models.invoice_item import InvoiceItem
 from app.models.product import Product
+from app.quantity_validation import quantity_validation_error
 from app.schemas.invoice import InvoiceCreate, InvoiceResponse
 from app.routes.auth import get_current_user
 from app.models.invoice_number_counter import InvoiceNumberCounter
@@ -81,21 +82,18 @@ def create_invoice(
 
         products[item_data.product_id] = product
 
+        validation_error = quantity_validation_error(
+            item_data.quantity,
+            product.unit,
+        )
+        if validation_error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=validation_error,
+            )
+
         if not invoice_data.deduct_from_inventory:
             continue
-
-        # Validate quantity based on product unit
-        unit = (product.unit or "").strip().lower()
-
-        if unit != "kg":
-            if item_data.quantity != item_data.quantity.to_integral_value():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=(
-                        f"Quantity for {product.name} ({product.unit}) "
-                        "must be a whole number."
-                    ),
-                )
 
         # Lock inventory row
         inventory = db.scalar(

@@ -19,6 +19,7 @@ from app.models.manufacture_inventory_transaction import (
     ManufactureInventoryTransaction,
 )
 from app.models.manufacture_product import ManufactureProduct
+from app.quantity_validation import quantity_validation_error
 from app.routes.auth import get_current_user
 from app.schemas.manufacture_invoice import (
     ManufactureInvoiceCreate,
@@ -38,23 +39,6 @@ TWO_PLACES = Decimal("0.01")
 
 def money(value: Decimal) -> Decimal:
     return value.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
-
-
-def validate_quantity_for_unit(
-    quantity: Decimal,
-    unit: str,
-) -> None:
-    if unit.strip().lower() == "kg":
-        return
-
-    if quantity != quantity.to_integral_value():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"Quantity for {unit} must be a whole number. "
-                f"Received: {quantity}"
-            ),
-        )
 
 
 @router.post(
@@ -91,8 +75,17 @@ def create_invoice(
                     )
                 products[item_data.product_id] = product
 
+            validation_error = quantity_validation_error(
+                item_data.quantity,
+                product.unit,
+            )
+            if validation_error:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=validation_error,
+                )
+
             if invoice_data.deduct_from_inventory:
-                validate_quantity_for_unit(item_data.quantity, product.unit)
                 requested_quantities[item_data.product_id] = (
                     requested_quantities.get(item_data.product_id, Decimal("0"))
                     + item_data.quantity

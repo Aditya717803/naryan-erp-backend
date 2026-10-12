@@ -11,6 +11,7 @@ from app.models.manufacture_inventory_transaction import (
     ManufactureInventoryTransaction,
 )
 from app.models.manufacture_product import ManufactureProduct
+from app.quantity_validation import quantity_validation_error
 from app.routes.auth import get_current_user
 from app.schemas.manufacture_inventory import (
     ManufactureBundleCountAdjustment,
@@ -18,23 +19,6 @@ from app.schemas.manufacture_inventory import (
     ManufactureInventoryResponse,
     ManufactureInventoryTransactionResponse,
 )
-
-
-def validate_quantity_for_unit(
-    quantity: Decimal,
-    unit: str,
-) -> None:
-    if unit.strip().lower() == "kg":
-        return
-
-    if quantity != quantity.to_integral_value():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"Quantity for {unit} must be a whole number. "
-                f"Received: {quantity}"
-            ),
-        )
 
 
 router = APIRouter(
@@ -83,10 +67,15 @@ def add_stock(
                 detail="Product not found",
             )
 
-        validate_quantity_for_unit(
+        validation_error = quantity_validation_error(
             stock_data.quantity,
             product.unit,
         )
+        if validation_error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=validation_error,
+            )
 
         inventory = db.scalar(
             select(ManufactureInventory)
@@ -146,10 +135,15 @@ def remove_stock(
                 detail="Product not found",
             )
 
-        validate_quantity_for_unit(
+        validation_error = quantity_validation_error(
             stock_data.quantity,
             product.unit,
         )
+        if validation_error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=validation_error,
+            )
 
         inventory = db.scalar(
             select(ManufactureInventory)

@@ -21,7 +21,7 @@ class Inventory(Base):
         nullable=False,
     )
 
-    quantity: Mapped[int] = mapped_column(
+    quantity: Mapped[Decimal] = mapped_column(
         Numeric(14, 3),
         nullable=False,
         default=0,

@@ -7,6 +7,7 @@ from app.models.inventory import Inventory
 from app.models.inventory_transaction import InventoryTransaction
 from app.models.notification import Notification
 from app.models.product import Product
+from app.quantity_validation import quantity_validation_error
 from app.schemas.inventory import (
     BundleCountAdjustment,
     InventoryAdjustment,
@@ -79,6 +80,16 @@ def add_stock(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found",
+        )
+
+    validation_error = quantity_validation_error(
+        stock_data.quantity,
+        product.unit,
+    )
+    if validation_error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=validation_error,
         )
 
     # Get inventory
@@ -162,6 +173,16 @@ def remove_stock(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found",
+        )
+
+    validation_error = quantity_validation_error(
+        stock_data.quantity,
+        product.unit,
+    )
+    if validation_error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=validation_error,
         )
 
     # Get inventory

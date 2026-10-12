@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy import Numeric
@@ -25,7 +26,7 @@ class InventoryTransaction(Base):
         nullable=False,
     )
 
-    quantity: Mapped[int] = mapped_column(
+    quantity: Mapped[Decimal] = mapped_column(
         Numeric(14, 3),
         nullable=False,
     )
